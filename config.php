@@ -49,10 +49,8 @@ class Database {
         return $this->conn;
     }
     
-    // Prevenir clonagem
     private function __clone() {}
     
-    // Prevenir unserialize
     public function __wakeup() {
         throw new Exception("Cannot unserialize singleton");
     }
@@ -92,12 +90,10 @@ function validarCPF($cpf) {
         return false;
     }
     
-    // Verifica se todos os dígitos são iguais
     if (preg_match('/(\d)\1{10}/', $cpf)) {
         return false;
     }
     
-    // Valida primeiro dígito verificador
     for ($t = 9; $t < 11; $t++) {
         for ($d = 0, $c = 0; $c < $t; $c++) {
             $d += $cpf[$c] * (($t + 1) - $c);
@@ -116,6 +112,7 @@ function validarCPF($cpf) {
  */
 function formatarCPF($cpf) {
     $cpf = preg_replace('/[^0-9]/', '', $cpf);
+    if (strlen($cpf) != 11) return $cpf;
     return preg_replace('/(\d{3})(\d{3})(\d{3})(\d{2})/', '$1.$2.$3-$4', $cpf);
 }
 
@@ -156,12 +153,12 @@ function formatarDataHoraBR($dataHora) {
 function uploadArquivo($file, $pasta = 'geral') {
     $uploadDir = UPLOAD_DIR . $pasta . '/';
     
-    // Cria o diretório se não existir
     if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
+        if (!mkdir($uploadDir, 0755, true)) {
+            return ['success' => false, 'message' => 'Erro ao criar diretório'];
+        }
     }
     
-    // Validações
     if ($file['error'] !== UPLOAD_ERR_OK) {
         return ['success' => false, 'message' => 'Erro no upload do arquivo'];
     }
@@ -170,7 +167,6 @@ function uploadArquivo($file, $pasta = 'geral') {
         return ['success' => false, 'message' => 'Arquivo muito grande. Máximo: 10MB'];
     }
     
-    // Extensões permitidas
     $extensoesPermitidas = ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'];
     $extensao = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     
@@ -178,7 +174,6 @@ function uploadArquivo($file, $pasta = 'geral') {
         return ['success' => false, 'message' => 'Tipo de arquivo não permitido'];
     }
     
-    // Nome único para o arquivo
     $nomeArquivo = uniqid() . '_' . time() . '.' . $extensao;
     $caminhoCompleto = $uploadDir . $nomeArquivo;
     

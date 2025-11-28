@@ -4,7 +4,6 @@ require_once 'config.php';
 $sucesso = '';
 $erro = '';
 
-// Processar envio do formulário
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
     try {
         $db = getDB();
@@ -12,6 +11,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
         // Validar CPF
         if (!validarCPF($_POST['cpf'])) {
             throw new Exception('CPF inválido');
+        }
+        
+        // Validar campos obrigatórios
+        $camposObrigatorios = ['nome', 'cpf', 'idade', 'sexo', 'telefone', 'endereco', 'servico', 'data', 'periodo'];
+        foreach ($camposObrigatorios as $campo) {
+            if (empty($_POST[$campo])) {
+                throw new Exception('Preencha todos os campos obrigatórios');
+            }
+        }
+        
+        // Validar data (não pode ser no passado)
+        if (strtotime($_POST['data']) < strtotime('today')) {
+            throw new Exception('Data de agendamento não pode ser no passado');
         }
         
         // Upload da identidade
@@ -25,12 +37,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
             }
         }
         
-        // Iniciar transação
         $db->beginTransaction();
+        
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $_POST['cpf']);
         
         // Verificar se paciente já existe
         $stmt = $db->prepare("SELECT id FROM pacientes WHERE cpf = ?");
-        $stmt->execute([preg_replace('/[^0-9]/', '', $_POST['cpf'])]);
+        $stmt->execute([$cpfLimpo]);
         $paciente = $stmt->fetch();
         
         if ($paciente) {
@@ -44,11 +57,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
             
             $stmt->execute([
                 sanitize($_POST['nome']),
-                preg_replace('/[^0-9]/', '', $_POST['cpf']),
+                $cpfLimpo,
                 (int)$_POST['idade'],
                 sanitize($_POST['sexo']),
                 preg_replace('/[^0-9]/', '', $_POST['telefone']),
-                sanitize($_POST['email']),
+                sanitize($_POST['email'] ?? ''),
                 sanitize($_POST['endereco']),
                 $fotoIdentidade
             ]);
@@ -68,8 +81,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
             sanitize($_POST['servico']),
             sanitize($_POST['data']),
             sanitize($_POST['periodo']),
-            sanitize($_POST['urgencia']),
-            sanitize($_POST['observacoes'])
+            sanitize($_POST['urgencia'] ?? 'rotina'),
+            sanitize($_POST['observacoes'] ?? '')
         ]);
         
         $db->commit();
@@ -84,7 +97,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
     }
 }
 
-// Processar envio de exames
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
     try {
         if (!isset($_FILES['examesUpload']) || $_FILES['examesUpload']['error'] !== UPLOAD_ERR_OK) {
@@ -93,8 +105,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
         
         $upload = uploadArquivo($_FILES['examesUpload'], 'exames');
         if ($upload['success']) {
-            // Aqui você pode salvar no banco vinculando a um paciente
-            // Por enquanto, apenas confirmação de upload
             $sucesso = 'Documento enviado com sucesso! Nosso time médico irá analisá-lo.';
         } else {
             throw new Exception($upload['message']);
@@ -138,7 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
     <?php if ($sucesso): ?>
         <div class="container">
             <div style="background: #e8f5e9; color: #2e7d32; padding: 1.5rem; border-radius: 12px; margin: 20px auto; max-width: 800px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <strong>✓ <?= $sucesso ?></strong>
+                <strong>✓ <?= htmlspecialchars($sucesso) ?></strong>
             </div>
         </div>
     <?php endif; ?>
@@ -146,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
     <?php if ($erro): ?>
         <div class="container">
             <div style="background: #ffebee; color: #c62828; padding: 1.5rem; border-radius: 12px; margin: 20px auto; max-width: 800px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-                <strong>❌ <?= $erro ?></strong>
+                <strong>❌ <?= htmlspecialchars($erro) ?></strong>
             </div>
         </div>
     <?php endif; ?>
@@ -247,17 +257,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
                 <button class="close" onclick="closeModal()">&times;</button>
             </div>
             <div class="form-container">
-                <form method="POST" enctype="multipart/form-data">
+                <form method="POST" enctype="multipart/form-data" onsubmit="return validarFormulario()">
                     <h3 style="margin-bottom: 1rem; color: #2ea02c;">Dados do Paciente</h3>
                     
                     <div class="form-row">
                         <div class="form-group">
                             <label for="nome">Nome Completo *</label>
-                            <input type="text" id="nome" name="nome" required>
+                            <input type="text" id="nome" name="nome" required minlength="3">
                         </div>
                         <div class="form-group">
                             <label for="cpf">CPF *</label>
-                            <input type="text" id="cpf" name="cpf" placeholder="000.000.000-00" required>
+                            <input type="text" id="cpf" name="cpf" placeholder="000.000.000-00" required maxlength="14">
                         </div>
                     </div>
 
@@ -279,7 +289,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="telefone">Telefone *</label>
-                            <input type="tel" id="telefone" name="telefone" placeholder="(11) 99999-9999" required>
+                            <input type="tel" id="telefone" name="telefone" placeholder="(11) 99999-9999" required maxlength="15">
                         </div>
                         <div class="form-group">
                             <label for="email">Email</label>
@@ -289,7 +299,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
 
                     <div class="form-group">
                         <label for="endereco">Endereço Completo *</label>
-                        <textarea id="endereco" name="endereco" rows="3" placeholder="Rua, número, bairro, cidade, CEP" required></textarea>
+                        <textarea id="endereco" name="endereco" rows="3" placeholder="Rua, número, bairro, cidade, CEP" required minlength="10"></textarea>
                     </div>
 
                     <h3 style="margin: 2rem 0 1rem 0; color: #3cc94f;">Informações da Consulta</h3>
@@ -384,22 +394,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
             }
         }
 
-        // Máscaras
+        // Máscara de CPF
         document.getElementById('cpf').addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
+            if (value.length > 11) value = value.slice(0, 11);
             value = value.replace(/(\d{3})(\d)/, '$1.$2');
             value = value.replace(/(\d{3})(\d)/, '$1.$2');
             value = value.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
             e.target.value = value;
         });
 
+        // Máscara de telefone
         document.getElementById('telefone').addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
-            value = value.replace(/(\d{2})(\d)/, '($1) $2');
-            value = value.replace(/(\d{5})(\d)/, '$1-$2');
+            if (value.length > 11) value = value.slice(0, 11);
+            if (value.length <= 10) {
+                value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                value = value.replace(/(\d{4})(\d)/, '$1-$2');
+            } else {
+                value = value.replace(/(\d{2})(\d)/, '($1) $2');
+                value = value.replace(/(\d{5})(\d)/, '$1-$2');
+            }
             e.target.value = value;
         });
 
+        // Feedback visual no upload
         document.getElementById('identidade').addEventListener('change', function(e) {
             const label = e.target.nextElementSibling;
             const fileName = e.target.files[0]?.name;
@@ -409,6 +428,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['enviar_exame'])) {
                 label.style.borderColor = '#28a745';
             }
         });
+        
+        document.getElementById('examesUpload').addEventListener('change', function(e) {
+            const label = e.target.nextElementSibling;
+            const fileName = e.target.files[0]?.name;
+            if (fileName) {
+                label.innerHTML = `✅ ${fileName}<br><small>Arquivo selecionado com sucesso!</small>`;
+                label.style.background = '#e8f5e8';
+                label.style.borderColor = '#28a745';
+            }
+        });
+
+        // Validação do formulário
+        function validarFormulario() {
+            const cpf = document.getElementById('cpf').value.replace(/\D/g, '');
+            if (cpf.length !== 11) {
+                alert('CPF inválido! Digite um CPF com 11 dígitos.');
+                return false;
+            }
+            
+            const data = document.getElementById('data').value;
+            if (new Date(data) < new Date().setHours(0,0,0,0)) {
+                alert('A data não pode ser no passado!');
+                return false;
+            }
+            
+            return true;
+        }
     </script>
 </body>
 </html>
