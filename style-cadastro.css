@@ -1,0 +1,362 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    color: #6B4E3D;
+    background-color: #FDFCFB;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+header {
+    background: #D4A89C;
+    color: #FFFFFF;
+    padding: 1rem 0;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logo {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #3B3A1C;
+}
+
+.nav-links {
+    display: flex;
+    list-style: none;
+    gap: 2rem;
+}
+
+.nav-links a {
+    color: #3B3A1C;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: #A9C166;
+}
+
+.hero {
+    background: #E8D5D0;
+    color: #6B4E3D;
+    text-align: center;
+    padding: 120px 20px 80px;
+    margin-top: 70px;
+    border-radius: 0 0 30px 30px;
+}
+
+.hero h1 {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    font-weight: bold;
+}
+
+.hero p {
+    font-size: 1.2rem;
+    margin-bottom: 2rem;
+    max-width: 650px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.cta-button {
+    background: #A9C166;
+    color: #FFFFFF;
+    padding: 14px 35px;
+    font-size: 1.1rem;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-weight: bold;
+    text-decoration: none;
+    display: inline-block;
+    margin: 10px;
+}
+
+.cta-button:hover {
+    background: #8AA654;
+    color: #FFFFFF;
+}
+
+.features {
+    padding: 80px 0;
+    background: #FDFCFB;
+}
+
+.features h2 {
+    text-align: center;
+    color: #6B4E3D;
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+}
+
+.feature-card {
+    background: #FFFFFF;
+    padding: 2rem;
+    border-radius: 16px;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(169, 193, 102, 0.3);
+    transition: transform 0.3s;
+}
+
+.feature-card:hover {
+    transform: translateY(-5px);
+    background: #E8D5D0;
+    color: #6B4E3D;
+}
+
+.feature-icon {
+    width: 70px;
+    height: 70px;
+    margin: 0 auto 1rem;
+    background: #A9C166;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    color: #FFFFFF;
+}
+
+.services {
+    padding: 80px 0;
+    background: #FDFCFB;
+}
+
+.services h2 {
+    text-align: center;
+    color: #6B4E3D;
+    font-size: 2.2rem;
+    margin-bottom: 2rem;
+}
+
+.services-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+}
+
+.service-item {
+    padding: 1.5rem;
+    background: #E8D5D0;
+    border-radius: 12px;
+    border-left: 6px solid #A9C166;
+    transition: all 0.3s;
+}
+
+.service-item:hover {
+    background: #D4A89C;
+    color: #3B3A1C;
+}
+
+#envio-exames {
+    padding: 80px 20px;
+    background: #E8D5D0;
+    text-align: center;
+}
+
+#envio-exames h2 {
+    color: #6B4E3D;
+    margin-bottom: 1rem;
+}
+
+.file-upload-label {
+    display: block;
+    padding: 14px;
+    background: #FFFFFF;
+    border: 2px dashed #A9C166;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    color: #6B4E3D;
+}
+
+.file-upload-label:hover {
+    background: #A9C166;
+    color: #FFFFFF;
+}
+
+.contact-info {
+    background: #D4A89C;
+    color: #3B3A1C;
+    padding: 60px 20px;
+    text-align: center;
+    border-radius: 20px 20px 0 0;
+}
+
+.contact-info h2 {
+    margin-bottom: 1rem;
+}
+
+.contact-info p {
+    font-size: 1.2rem;
+    margin: 1rem 0;
+    text-align: center;
+}
+
+footer {
+    background: #3B3A1C;
+    color: #A9C166;
+    text-align: center;
+    padding: 1.5rem;
+    border-top: 2px solid #A9C166;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(212, 168, 156, 0.8);
+    overflow-y: auto;
+}
+
+.modal-content {
+    background: #FFFFFF;
+    margin: 3% auto;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 700px;
+    max-height: 85vh;
+    overflow-y: auto;
+    border: 2px solid #A9C166;
+    position: relative;
+}
+
+.modal-header {
+    background: #A9C166;
+    color: #FFFFFF;
+    padding: 1rem;
+    border-radius: 12px 12px 0 0;
+    position: relative;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.close {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    background: none;
+    border: none;
+    color: #FFFFFF;
+}
+
+.form-container {
+    padding: 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    color: #6B4E3D;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #D4A89C;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: #FFFFFF;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #A9C166;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.submit-btn {
+    background: #A9C166;
+    color: #FFFFFF;
+    padding: 14px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.submit-btn:hover {
+    background: #8AA654;
+    color: #FFFFFF;
+}
+
+@media (max-width: 768px) {
+    .modal-content {
+        margin: 5% auto;
+        width: 95%;
+        max-height: 90vh;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.modal-content::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-content::-webkit-scrollbar-track {
+    background: #E8D5D0;
+    border-radius: 4px;
+}
+
+.modal-content::-webkit-scrollbar-thumb {
+    background: #A9C166;
+    border-radius: 4px;
+}
