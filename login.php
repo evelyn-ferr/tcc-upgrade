@@ -12,7 +12,7 @@ if (isLogged()) {
     } elseif (isCuidador()) {
         header('Location: perfil-cuidador.php');
     } else {
-        header('Location: dashboard.php');
+        header('Location: index.php');
     }
     exit;
 }
