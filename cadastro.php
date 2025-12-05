@@ -1,4 +1,8 @@
 <?php
+// Configurar charset
+header('Content-Type: text/html; charset=UTF-8');
+mb_internal_encoding('UTF-8');
+
 require_once 'config.php';
 require_once 'auth.php';
 
@@ -7,71 +11,12 @@ $erro = '';
 
 // Processar cadastro de usuário (familiar ou cuidador)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['cadastrar_usuario'])) {
-    try {
-        $db = getDB();
-        
-        // Validações
-        $nome = sanitize($_POST['nome']);
-        $email = sanitize($_POST['email']);
-        $senha = $_POST['senha'];
-        $confirmar_senha = $_POST['confirmar_senha'];
-        $tipo = sanitize($_POST['tipo_usuario']);
-        $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone']);
-        $cpf = preg_replace('/[^0-9]/', '', $_POST['cpf']);
-        
-        // Validar campos obrigatórios
-        if (empty($nome) || empty($email) || empty($senha) || empty($tipo) || empty($cpf)) {
-            throw new Exception('Preencha todos os campos obrigatórios');
-        }
-        
-        // Validar email
-        if (!validarEmail($email)) {
-            throw new Exception('Email inválido');
-        }
-        
-        // Validar CPF
-        if (!validarCPF($cpf)) {
-            throw new Exception('CPF inválido');
-        }
-        
-        // Validar senha
-        if (strlen($senha) < 6) {
-            throw new Exception('A senha deve ter no mínimo 6 caracteres');
-        }
-        
-        if ($senha !== $confirmar_senha) {
-            throw new Exception('As senhas não coincidem');
-        }
-        
-        // Verificar se email já existe
-        $stmt = $db->prepare("SELECT id FROM usuarios WHERE email = ?");
-        $stmt->execute([$email]);
-        if ($stmt->fetch()) {
-            throw new Exception('Este email já está cadastrado');
-        }
-        
-        // Verificar se CPF já existe
-        $stmt = $db->prepare("SELECT id FROM usuarios WHERE cpf = ?");
-        $stmt->execute([$cpf]);
-        if ($stmt->fetch()) {
-            throw new Exception('Este CPF já está cadastrado');
-        }
-        
-        // Criar hash da senha
-        $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
-        
-        // Inserir usuário
-        $stmt = $db->prepare("
-            INSERT INTO usuarios (nome, email, senha, tipo_usuario, telefone, cpf)
-            VALUES (?, ?, ?, ?, ?, ?)
-        ");
-        
-        $stmt->execute([$nome, $email, $senhaHash, $tipo, $telefone, $cpf]);
-        
-        $sucesso = 'Cadastro realizado com sucesso! Você já pode fazer login.';
-        
-    } catch (Exception $e) {
-        $erro = $e->getMessage();
+    $resultado = Auth::registrar($_POST);
+    
+    if ($resultado['success']) {
+        $sucesso = $resultado['message'] . ' Você já pode fazer login.';
+    } else {
+        $erro = $resultado['message'];
     }
 }
 
@@ -81,7 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
         $db = getDB();
         
         // Validar CPF
-        if (!validarCPF($_POST['cpf'])) {
+        $cpfLimpo = preg_replace('/[^0-9]/', '', $_POST['cpf']);
+        if (!validarCPF($cpfLimpo)) {
             throw new Exception('CPF inválido');
         }
         
@@ -111,8 +57,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
         
         $db->beginTransaction();
         
-        $cpfLimpo = preg_replace('/[^0-9]/', '', $_POST['cpf']);
-        
         // Verificar se paciente já existe
         $stmt = $db->prepare("SELECT id FROM pacientes WHERE cpf = ?");
         $stmt->execute([$cpfLimpo]);
@@ -122,6 +66,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
             $pacienteId = $paciente['id'];
         } else {
             // Inserir novo paciente
+            $telefone = preg_replace('/[^0-9]/', '', $_POST['telefone']);
+            $email = !empty($_POST['email']) ? trim($_POST['email']) : null;
+            
             $stmt = $db->prepare("
                 INSERT INTO pacientes (nome, cpf, idade, sexo, telefone, email, endereco, foto_identidade)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -132,8 +79,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
                 $cpfLimpo,
                 (int)$_POST['idade'],
                 sanitize($_POST['sexo']),
-                preg_replace('/[^0-9]/', '', $_POST['telefone']),
-                sanitize($_POST['email'] ?? ''),
+                $telefone,
+                $email,
                 sanitize($_POST['endereco']),
                 $fotoIdentidade
             ]);
@@ -248,27 +195,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
             color: #6B4E3D;
         }
 
-        .cta-button {
-            display: inline-block;
-            background: #A9C166;
-            color: white;
-            padding: 1rem 2.5rem;
-            text-decoration: none;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            border: none;
-            cursor: pointer;
-            margin: 0.5rem;
-            transition: all 0.3s;
-        }
-
-        .cta-button:hover {
-            background: #8AA654;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-        }
-
         .alert {
             padding: 1.5rem;
             border-radius: 12px;
@@ -281,11 +207,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
         .alert-success {
             background: #e8f5e9;
             color: #2e7d32;
+            border: 2px solid #66bb6a;
         }
 
         .alert-error {
             background: #ffebee;
             color: #c62828;
+            border: 2px solid #ef5350;
         }
 
         .tabs {
@@ -377,32 +305,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
             box-shadow: 0 5px 15px rgba(169, 193, 102, 0.4);
         }
 
-        .file-upload {
-            position: relative;
-        }
-
-        .file-upload input[type="file"] {
-            position: absolute;
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .file-upload-label {
-            display: block;
-            padding: 1rem;
-            background: #f5f5f5;
-            border: 2px dashed #A9C166;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .file-upload-label:hover {
-            background: #e8f5e9;
-        }
-
         footer {
             background: rgba(255, 255, 255, 0.95);
             padding: 2rem 0;
@@ -455,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
     <?php if ($erro): ?>
         <div class="container">
             <div class="alert alert-error">
-                <strong>❌ <?= htmlspecialchars($erro) ?></strong>
+                <strong>✗ <?= htmlspecialchars($erro) ?></strong>
             </div>
         </div>
     <?php endif; ?>
@@ -473,7 +375,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
         <!-- Tab Cadastro -->
         <div id="cadastro" class="tab-content active">
             <h2 style="margin-bottom: 1.5rem; color: #3B3A1C;">Criar Nova Conta</h2>
-            <form method="POST">
+            <form method="POST" onsubmit="return validarCadastro()">
                 <div class="form-group">
                     <label for="tipo_usuario">Tipo de Cadastro *</label>
                     <select id="tipo_usuario" name="tipo_usuario" required>
@@ -624,13 +526,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
 
                 <div class="form-group">
                     <label for="identidade">Foto da Identidade (RG ou CNH)</label>
-                    <div class="file-upload">
-                        <input type="file" id="identidade" name="identidade" accept="image/*,.pdf">
-                        <label for="identidade" class="file-upload-label">
-                            📷 Clique para enviar foto da identidade
-                            <br><small>Formatos: JPG, PNG, PDF (máx. 10MB)</small>
-                        </label>
-                    </div>
+                    <input type="file" id="identidade" name="identidade" accept="image/*,.pdf">
                 </div>
 
                 <button type="submit" name="agendar" class="submit-btn">Solicitar Agendamento</button>
@@ -647,7 +543,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
 
     <script>
         function switchTab(tabName) {
-            // Esconder todos os tabs
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -655,9 +550,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
                 btn.classList.remove('active');
             });
 
-            // Mostrar tab selecionado
             document.getElementById(tabName).classList.add('active');
             event.target.classList.add('active');
+        }
+
+        function validarCadastro() {
+            const senha = document.getElementById('senha').value;
+            const confirmar = document.getElementById('confirmar_senha').value;
+            
+            if (senha !== confirmar) {
+                alert('As senhas não coincidem!');
+                return false;
+            }
+            
+            if (senha.length < 6) {
+                alert('A senha deve ter no mínimo 6 caracteres!');
+                return false;
+            }
+            
+            return true;
         }
 
         // Máscara CPF
@@ -693,17 +604,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agendar'])) {
 
         mascaraTelefone(document.getElementById('telefone'));
         mascaraTelefone(document.getElementById('telefone_cadastro'));
-
-        // Feedback upload
-        document.getElementById('identidade').addEventListener('change', function(e) {
-            const label = e.target.nextElementSibling;
-            const fileName = e.target.files[0]?.name;
-            if (fileName) {
-                label.innerHTML = `✅ ${fileName}<br><small>Arquivo selecionado!</small>`;
-                label.style.background = '#e8f5e9';
-                label.style.borderColor = '#28a745';
-            }
-        });
     </script>
 </body>
 </html>

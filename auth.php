@@ -1,9 +1,12 @@
 <?php
 /**
  * CuidarBem - Sistema de Autenticação
- * 
- * Funções para gerenciar login, logout e sessões
+ * VERSÃO CORRIGIDA
  */
+
+// Configurar charset
+header('Content-Type: text/html; charset=UTF-8');
+mb_internal_encoding('UTF-8');
 
 require_once 'config.php';
 
@@ -24,42 +27,50 @@ class Auth {
         try {
             $db = getDB();
             
+            // Limpar email
+            $email = trim(strtolower($email));
+            
             $stmt = $db->prepare("
                 SELECT id, nome, email, senha, tipo_usuario, telefone, cpf, status 
                 FROM usuarios 
-                WHERE email = ? AND status = 'ativo'
+                WHERE LOWER(email) = ? AND status = 'ativo'
             ");
             
             $stmt->execute([$email]);
             $usuario = $stmt->fetch();
             
-            if ($usuario && password_verify($senha, $usuario['senha'])) {
-                // Login bem-sucedido
-                $_SESSION['user_id'] = $usuario['id'];
-                $_SESSION['user_name'] = $usuario['nome'];
-                $_SESSION['user_email'] = $usuario['email'];
-                $_SESSION['user_type'] = $usuario['tipo_usuario'];
-                $_SESSION['logged_in'] = true;
-                
-                // Registrar último acesso
-                $stmt = $db->prepare("
-                    UPDATE usuarios 
-                    SET data_ultimo_acesso = NOW() 
-                    WHERE id = ?
-                ");
-                $stmt->execute([$usuario['id']]);
-                
-                return [
-                    'success' => true, 
-                    'tipo' => $usuario['tipo_usuario'],
-                    'nome' => $usuario['nome']
-                ];
+            if (!$usuario) {
+                return ['success' => false, 'message' => 'Email não encontrado ou conta inativa'];
             }
             
-            return ['success' => false, 'message' => 'Email ou senha incorretos'];
+            if (!password_verify($senha, $usuario['senha'])) {
+                return ['success' => false, 'message' => 'Senha incorreta'];
+            }
+            
+            // Login bem-sucedido
+            $_SESSION['user_id'] = $usuario['id'];
+            $_SESSION['user_name'] = $usuario['nome'];
+            $_SESSION['user_email'] = $usuario['email'];
+            $_SESSION['user_type'] = $usuario['tipo_usuario'];
+            $_SESSION['logged_in'] = true;
+            
+            // Registrar último acesso
+            $stmt = $db->prepare("
+                UPDATE usuarios 
+                SET data_ultimo_acesso = NOW() 
+                WHERE id = ?
+            ");
+            $stmt->execute([$usuario['id']]);
+            
+            return [
+                'success' => true, 
+                'tipo' => $usuario['tipo_usuario'],
+                'nome' => $usuario['nome']
+            ];
             
         } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Erro ao fazer login: ' . $e->getMessage()];
+            error_log("Erro no login: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao processar login. Tente novamente.'];
         }
     }
     
@@ -67,6 +78,10 @@ class Auth {
      * Realizar logout do usuário
      */
     public static function logout() {
+        $_SESSION = array();
+        if (isset($_COOKIE[session_name()])) {
+            setcookie(session_name(), '', time()-42000, '/');
+        }
         session_destroy();
         header('Location: index.php');
         exit;
@@ -144,55 +159,76 @@ class Auth {
         try {
             $db = getDB();
             
+            // Limpar e validar dados
+            $email = trim(strtolower($dados['email']));
+            $cpf = preg_replace('/[^0-9]/', '', $dados['cpf']);
+            $telefone = preg_replace('/[^0-9]/', '', $dados['telefone'] ?? '');
+            $nome = trim($dados['nome']);
+            $senha = $dados['senha'];
+            $tipo = $dados['tipo_usuario'];
+            
             // Validações
-            if (!validarEmail($dados['email'])) {
+            if (empty($nome) || empty($email) || empty($senha) || empty($tipo) || empty($cpf)) {
+                return ['success' => false, 'message' => 'Preencha todos os campos obrigatórios'];
+            }
+            
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 return ['success' => false, 'message' => 'Email inválido'];
             }
             
-            if (!validarCPF($dados['cpf'])) {
+            if (!validarCPF($cpf)) {
                 return ['success' => false, 'message' => 'CPF inválido'];
             }
             
-            if (strlen($dados['senha']) < 6) {
+            if (strlen($senha) < 6) {
                 return ['success' => false, 'message' => 'Senha deve ter no mínimo 6 caracteres'];
             }
             
+            if (!in_array($tipo, ['familiar', 'cuidador'])) {
+                return ['success' => false, 'message' => 'Tipo de usuário inválido'];
+            }
+            
             // Verificar se email já existe
-            $stmt = $db->prepare("SELECT id FROM usuarios WHERE email = ?");
-            $stmt->execute([$dados['email']]);
-            if ($stmt->fetch()) {
-                return ['success' => false, 'message' => 'Email já cadastrado'];
+            $stmt = $db->prepare("SELECT COUNT(*) FROM usuarios WHERE LOWER(email) = ?");
+            $stmt->execute([$email]);
+            if ($stmt->fetchColumn() > 0) {
+                return ['success' => false, 'message' => 'Este email já está cadastrado'];
             }
             
             // Verificar se CPF já existe
-            $stmt = $db->prepare("SELECT id FROM usuarios WHERE cpf = ?");
-            $stmt->execute([$dados['cpf']]);
-            if ($stmt->fetch()) {
-                return ['success' => false, 'message' => 'CPF já cadastrado'];
+            $stmt = $db->prepare("SELECT COUNT(*) FROM usuarios WHERE cpf = ?");
+            $stmt->execute([$cpf]);
+            if ($stmt->fetchColumn() > 0) {
+                return ['success' => false, 'message' => 'Este CPF já está cadastrado'];
             }
             
             // Hash da senha
-            $senhaHash = password_hash($dados['senha'], PASSWORD_DEFAULT);
+            $senhaHash = password_hash($senha, PASSWORD_DEFAULT);
             
             // Inserir usuário
             $stmt = $db->prepare("
-                INSERT INTO usuarios (nome, email, senha, tipo_usuario, telefone, cpf) 
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO usuarios (nome, email, senha, tipo_usuario, telefone, cpf, status) 
+                VALUES (?, ?, ?, ?, ?, ?, 'ativo')
             ");
             
-            $stmt->execute([
-                $dados['nome'],
-                $dados['email'],
+            $resultado = $stmt->execute([
+                $nome,
+                $email,
                 $senhaHash,
-                $dados['tipo_usuario'],
-                $dados['telefone'] ?? null,
-                $dados['cpf']
+                $tipo,
+                $telefone,
+                $cpf
             ]);
             
-            return ['success' => true, 'message' => 'Usuário cadastrado com sucesso'];
+            if ($resultado) {
+                return ['success' => true, 'message' => 'Cadastro realizado com sucesso!'];
+            } else {
+                return ['success' => false, 'message' => 'Erro ao salvar cadastro'];
+            }
             
         } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Erro ao cadastrar: ' . $e->getMessage()];
+            error_log("Erro no cadastro: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao processar cadastro. Tente novamente.'];
         }
     }
     
@@ -224,42 +260,8 @@ class Auth {
             return ['success' => true, 'message' => 'Senha alterada com sucesso'];
             
         } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Erro ao alterar senha: ' . $e->getMessage()];
-        }
-    }
-    
-    /**
-     * Recuperar senha (enviar email com token)
-     */
-    public static function recuperarSenha($email) {
-        try {
-            $db = getDB();
-            
-            $stmt = $db->prepare("SELECT id, nome FROM usuarios WHERE email = ?");
-            $stmt->execute([$email]);
-            $usuario = $stmt->fetch();
-            
-            if (!$usuario) {
-                return ['success' => false, 'message' => 'Email não encontrado'];
-            }
-            
-            // Gerar token
-            $token = bin2hex(random_bytes(32));
-            $expira = date('Y-m-d H:i:s', strtotime('+1 hour'));
-            
-            // Salvar token no banco (você precisará criar uma tabela para isso)
-            // Por enquanto, retornar sucesso
-            
-            // TODO: Implementar envio de email
-            
-            return [
-                'success' => true, 
-                'message' => 'Email de recuperação enviado (funcionalidade em desenvolvimento)',
-                'token' => $token // Remover em produção
-            ];
-            
-        } catch (PDOException $e) {
-            return ['success' => false, 'message' => 'Erro ao recuperar senha: ' . $e->getMessage()];
+            error_log("Erro ao alterar senha: " . $e->getMessage());
+            return ['success' => false, 'message' => 'Erro ao alterar senha. Tente novamente.'];
         }
     }
 }

@@ -115,7 +115,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     
                     <div style="margin-top: 1rem; text-align: center; font-size: 0.9rem;">
                         <p>Não tem conta? <a href="cadastro.php" style="color: #A9C166; font-weight: bold;">Cadastre-se</a></p>
-                        <p style="color: #999; margin-top: 0.5rem;">Email de teste: maria.familiar@email.com<br>Senha: 123456</p>
                     </div>
                 </form>
             </div>
@@ -138,10 +137,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['login'])) {
                     </div>
                     
                     <button type="submit" name="login" class="login-btn" style="background: linear-gradient(45deg, #d7285f, #e88dc5);">Acessar como Cuidador</button>
-                    
-                    <div style="margin-top: 1rem; text-align: center; font-size: 0.9rem;">
-                        <p style="color: #999;">Email de teste: joao.silva@email.com<br>Senha: 123456</p>
-                    </div>
                 </form>
             </div>
         </div>
